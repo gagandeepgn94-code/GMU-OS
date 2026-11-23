@@ -1,0 +1,10 @@
+# Build artifacts
+*.o
+*.d
+build/*.o
+build/*.elf
+
+# Logs and emulator dumps
+*.log
+serial.log
+qemu_*.txt

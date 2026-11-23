@@ -1,0 +1,165 @@
+OUTPUT_FORMAT(elf64-littleaarch64)
+ENTRY(_start)
+
+PHDRS
+{
+    text    PT_LOAD    FLAGS(0x05);
+    rodata  PT_LOAD    FLAGS(0x04);
+    data    PT_LOAD    FLAGS(0x06);
+    dynamic PT_DYNAMIC FLAGS(0x06);
+}
+
+SECTIONS
+{
+    . = 0;
+    picoefi_image_base = ABSOLUTE(.);
+    picoefi_image_size = ABSOLUTE(picoefi_image_end - picoefi_image_base);
+
+    .text : {
+        KEEP(*(.pe_header))
+
+        . = ALIGN(0x1000);
+
+        picoefi_text_start = ABSOLUTE(.);
+        *(.text .text.*)
+    } :text
+
+    . = ALIGN(0x1000);
+    picoefi_text_end = ABSOLUTE(.);
+    picoefi_text_size = ABSOLUTE(picoefi_text_end - picoefi_text_start);
+
+    .rodata : {
+        picoefi_reloc_start = ABSOLUTE(.);
+        *(.dummy_reloc)
+
+        . = ALIGN(0x1000);
+        picoefi_reloc_end = ABSOLUTE(.);
+        picoefi_reloc_size = ABSOLUTE(picoefi_reloc_end - picoefi_reloc_start);
+
+        picoefi_rodata_start = ABSOLUTE(.);
+        *(.rodata .rodata.*)
+
+#ifdef LINKER_NOMAP
+   full_map = .;
+#else
+   *(.full_map)
+#endif
+    } :rodata
+
+    /* The dynamic tables and relocations of the PIE, which are only read. */
+    .gnu.hash : {
+        *(.gnu.hash)
+    } :rodata
+
+    .dynsym : {
+        *(.dynsym)
+    } :rodata
+
+    .dynstr : {
+        *(.dynstr)
+    } :rodata
+
+    .rela.dyn : {
+        *(.rela.*)
+    } :rodata
+
+    .relr.dyn : {
+        *(.relr.dyn)
+    } :rodata
+
+    /* A page even when empty, as some loaders refuse an empty section. Not
+       with MAX or ?:, which gold miscomputes. */
+    . = ALIGN(0x1000);
+    . += (. == picoefi_rodata_start) * 0x1000;
+    picoefi_rodata_end = ABSOLUTE(.);
+    picoefi_rodata_size = ABSOLUTE(picoefi_rodata_end - picoefi_rodata_start);
+
+    .dynamic : {
+        picoefi_data_start = ABSOLUTE(.);
+        *(.dynamic)
+    } :data :dynamic
+
+    /* Ahead of .bss, which entry.S zeroes before relocating. */
+    .got : {
+        *(.got)
+    } :data
+
+    .got.plt : {
+        *(.got.plt)
+    } :data
+
+    /* The global constructors, which the program calls itself, between the
+       bounds that entry.S places first and last. Not named .init_array, as
+       GNU ld warns when a section of that name is empty. GNU ld before 2.22
+       and gold before 2.27 cannot sort them by priority, so they are sorted
+       by name a width at a time, as Clang does not pad priorities. */
+    .picoefi_init_array : {
+        KEEP(*(.picoefi_init_array_start))
+        KEEP(*(SORT(.init_array.?)))
+        KEEP(*(SORT(.init_array.??)))
+        KEEP(*(SORT(.init_array.???)))
+        KEEP(*(SORT(.init_array.????)))
+        KEEP(*(SORT(.init_array.?????)))
+        KEEP(*(.init_array.*))
+        KEEP(*(.init_array))
+        KEEP(*(.picoefi_init_array_end))
+    } :data
+
+    /* The constructors Clang 10 and older emit for x86, which the program runs
+       backwards: their names count down from 65535 by priority, so sorted by
+       name they run in priority order. */
+    .picoefi_ctors : {
+        KEEP(*(.picoefi_ctors_start))
+        KEEP(*(.ctors))
+        KEEP(*(SORT(.ctors.*)))
+        KEEP(*(.picoefi_ctors_end))
+    } :data
+
+    .no_unwind : {
+        *(.no_unwind)
+    } :data
+
+    .data : {
+   data_begin = .;
+        *(.data .data.*)
+    } :data
+
+    /* Pad the file to a page, after any orphans. A dot assignment alone
+       writes nothing in GNU ld, and an input section draws orphans after it
+       in LLD. */
+    .pad : {
+        BYTE(0)
+        . = ALIGN(0x1000);
+        picoefi_data_rawend = ABSOLUTE(.);
+    } :data
+    picoefi_data_rawsize = ABSOLUTE(picoefi_data_rawend - picoefi_data_start);
+    picoefi_initialized_data_size = ABSOLUTE(picoefi_reloc_size +
+        picoefi_rodata_size + picoefi_data_rawsize);
+
+    /* .bss must come last: nothing with file contents may follow it. */
+    .bss : {
+        picoefi_bss_start = ABSOLUTE(.);
+        *(.bss .bss.*)
+        *(COMMON)
+   data_end = .;
+    } :data
+
+    /* Anything between the padding and .bss would be left out of the file. */
+    ASSERT(picoefi_bss_start == picoefi_data_rawend,
+        ".bss does not follow the padding")
+
+    picoefi_bss_end = ABSOLUTE(ALIGN(0x1000));
+    picoefi_bss_size = ABSOLUTE(picoefi_bss_end - picoefi_bss_start);
+
+    picoefi_data_end = ABSOLUTE(ALIGN(0x1000));
+    picoefi_data_size = ABSOLUTE(picoefi_data_end - picoefi_data_start);
+
+    picoefi_image_end = ABSOLUTE(ALIGN(0x1000));
+
+    /DISCARD/ : {
+        *(.eh_frame*)
+        *(.note .note.*)
+        *(.interp)
+        *(.ARM.attributes)
+    }
+}

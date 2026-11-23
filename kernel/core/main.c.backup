@@ -1,0 +1,105 @@
+#include <stdint.h>
+#include <stddef.h>
+#include <gmu/framebuffer.h>
+#include "../../boot/limine-src/limine-protocol/include/limine.h"
+
+__attribute__((used, section(".limine_requests_start_marker")))
+static volatile uint64_t requests_start[] =
+    LIMINE_REQUESTS_START_MARKER;
+
+__attribute__((used, section(".limine_requests")))
+static volatile uint64_t base_revision[] =
+    LIMINE_BASE_REVISION(3);
+
+__attribute__((used, section(".limine_requests")))
+static volatile struct limine_framebuffer_request framebuffer_request = {
+    .id = LIMINE_FRAMEBUFFER_REQUEST_ID,
+    .revision = 0
+};
+
+__attribute__((used, section(".limine_requests_end_marker")))
+static volatile uint64_t requests_end[] =
+    LIMINE_REQUESTS_END_MARKER;
+
+static void outb(uint16_t port, uint8_t value) {
+    __asm__ volatile ("outb %0, %1" :: "a"(value), "Nd"(port));
+}
+
+static uint8_t inb(uint16_t port) {
+    uint8_t value;
+    __asm__ volatile ("inb %1, %0" : "=a"(value) : "Nd"(port));
+    return value;
+}
+
+static void serial_init(void) {
+    outb(0x3F9, 0x00);
+    outb(0x3FB, 0x80);
+    outb(0x3F8, 0x01);
+    outb(0x3F9, 0x00);
+    outb(0x3FB, 0x03);
+    outb(0x3FA, 0xC7);
+    outb(0x3FC, 0x0B);
+}
+
+static void serial_char(char c) {
+    while (!(inb(0x3FD) & 0x20)) {}
+    outb(0x3F8, (uint8_t)c);
+}
+
+static void serial_print(const char *s) {
+    while (*s) serial_char(*s++);
+}
+
+static void halt(void) {
+    for (;;) __asm__ volatile ("cli; hlt");
+}
+
+void _start(void) {
+    serial_init();
+    serial_print("\r\nGMU OS 64: kernel entry reached\r\n");
+
+    if (!LIMINE_BASE_REVISION_SUPPORTED(base_revision)) {
+        serial_print("ERROR: Limine base revision unsupported\r\n");
+        halt();
+    }
+
+    serial_print("Limine protocol: OK\r\n");
+
+    if (!framebuffer_request.response ||
+        framebuffer_request.response->framebuffer_count == 0) {
+        serial_print("ERROR: Framebuffer unavailable\r\n");
+        halt();
+    }
+
+    struct limine_framebuffer *fb =
+        framebuffer_request.response->framebuffers[0];
+
+    if (!fb || !fb->address || fb->bpp != 32) {
+        serial_print("ERROR: Unsupported framebuffer\r\n");
+        halt();
+    }
+
+    serial_print("Framebuffer: OK\r\n");
+    serial_print("GMU OS 64: graphical initialization complete\r\n");
+
+gmu_framebuffer_t fb_state = {0};
+
+if (!gmu_fb_init(
+        &fb_state,
+        fb->address,
+        fb->width,
+        fb->height,
+        fb->pitch,
+        fb->bpp
+    )) {
+    serial_print("ERROR: GMU framebuffer driver initialization failed\r\n");
+    halt();
+}
+
+serial_print("GMU framebuffer driver: initialized\r\n");
+
+gmu_fb_clear(&fb_state, 0x00101827);
+    serial_print("GMU OS 64: framebuffer cleared successfully\r\n");
+
+    halt();
+}
