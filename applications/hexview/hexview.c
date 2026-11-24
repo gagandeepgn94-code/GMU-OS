@@ -159,6 +159,9 @@ void gmu_hexview_run(gmu_framebuffer_t *fb) {
 
     load_hex_file(current_file_path);
     draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
 
     uint64_t ww = fb->width > 860 ? 820 : fb->width - 40;
     uint64_t wh = fb->height > 600 ? 520 : fb->height - 50;
@@ -169,6 +172,7 @@ void gmu_hexview_run(gmu_framebuffer_t *fb) {
     for (;;) {
         /* Mouse Input */
         if (mouse_ready && gmu_mouse_poll(&mouse)) {
+            gmu_mouse_cursor_update(fb, mouse.x, mouse.y);
             bool left_click = (mouse.buttons & 1) && !(prev_buttons & 1);
             prev_buttons = mouse.buttons;
 
@@ -176,6 +180,7 @@ void gmu_hexview_run(gmu_framebuffer_t *fb) {
                 /* Click Red Close Chiclet */
                 if (mouse.x >= (int32_t)(wx + 10) && mouse.x <= (int32_t)(wx + 24) &&
                     mouse.y >= (int32_t)(wy + 10) && mouse.y <= (int32_t)(wy + 24)) {
+                    gmu_mouse_cursor_hide(fb);
                     break;
                 }
                 /* Click Quick File Bar shortcuts */
@@ -183,15 +188,27 @@ void gmu_hexview_run(gmu_framebuffer_t *fb) {
                     if (mouse.x >= (int32_t)(wx + 16) && mouse.x <= (int32_t)(wx + 105)) {
                         load_hex_file("/README.TXT");
                         draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                     } else if (mouse.x >= (int32_t)(wx + 120) && mouse.x <= (int32_t)(wx + 195)) {
                         load_hex_file("/Documents/ABOUT.TXT");
                         draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                     } else if (mouse.x >= (int32_t)(wx + 210) && mouse.x <= (int32_t)(wx + 305)) {
                         load_hex_file("/Config/SETTINGS.TXT");
                         draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                     } else if (mouse.x >= (int32_t)(wx + 320) && mouse.x <= (int32_t)(wx + 430)) {
                         load_hex_file("/SYSTEM.LOG");
                         draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                     }
                 }
             }
@@ -200,16 +217,23 @@ void gmu_hexview_run(gmu_framebuffer_t *fb) {
         uint16_t key = gmu_keyboard_read_key();
         if (key) {
             if (key == GMU_KEY_ESCAPE) {
+                if (mouse_ready) gmu_mouse_cursor_hide(fb);
                 break;
             } else if (key == GMU_KEY_DOWN || key == 's' || key == 'S') {
                 if (current_offset + BYTES_PER_ROW < hex_size) {
                     current_offset += BYTES_PER_ROW;
                     draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                 }
             } else if (key == GMU_KEY_UP || key == 'w' || key == 'W') {
                 if (current_offset >= BYTES_PER_ROW) {
                     current_offset -= BYTES_PER_ROW;
                     draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                 }
             } else if (key == '1') {
                 current_file_path[0] = '/'; current_file_path[1] = 'R'; current_file_path[2] = 'E';
@@ -218,15 +242,27 @@ void gmu_hexview_run(gmu_framebuffer_t *fb) {
                 current_file_path[9] = 'X'; current_file_path[10] = 'T'; current_file_path[11] = '\0';
                 load_hex_file(current_file_path);
                 draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
             } else if (key == '2') {
                 load_hex_file("/Documents/ABOUT.TXT");
                 draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
             } else if (key == '3') {
                 load_hex_file("/Config/SETTINGS.TXT");
                 draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
             } else if (key == '4') {
                 load_hex_file("/SYSTEM.LOG");
                 draw_hexview(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
             }
         }
 

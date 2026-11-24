@@ -20,97 +20,14 @@ static uint64_t selected_item = 0;
 static bool menu_open = false;
 
 /* ========================================================================= */
-/* 1. High-Resolution macOS / Windows 11 Arrow Cursor (16x16)               */
+/* 1. Universal Mouse Cursor Aliases                                         */
 /* ========================================================================= */
 
-#define CURSOR_W 16
-#define CURSOR_H 16
-
-static const char *cursor_bitmap[CURSOR_H] = {
-    "B...............",
-    "BB..............",
-    "BWB.............",
-    "BWWWB...........",
-    "BWWWWWB.........",
-    "BWWWWWWWB.......",
-    "BWWWWWWWWWB.....",
-    "BWWWWWWWWWWWB...",
-    "BWWWWWWWWWWWWWB.",
-    "BWWWWWWWWWWBB...",
-    "BWWWWWWBBBBB....",
-    "BWWWBWWWB.......",
-    "BWWB.BWWWB......",
-    "BBB...BWWWB.....",
-    "B......BWWWB....",
-    "........BBB....."
-};
-
-static uint32_t cursor_background[CURSOR_H][CURSOR_W];
-static int32_t cursor_saved_x = 0;
-static int32_t cursor_saved_y = 0;
-static bool cursor_visible = false;
+#define cursor_show(fb, x, y)       gmu_mouse_cursor_show((fb), (x), (y))
+#define cursor_hide(fb)             gmu_mouse_cursor_hide((fb))
+#define cursor_update(fb, x, y)     gmu_mouse_cursor_update((fb), (x), (y))
 static int32_t last_mouse_x = -100;
 static int32_t last_mouse_y = -100;
-
-static void draw_mouse_cursor(gmu_framebuffer_t *fb, int32_t x, int32_t y) {
-    for (int32_t cy = 0; cy < CURSOR_H; cy++) {
-        for (int32_t cx = 0; cx < CURSOR_W; cx++) {
-            char p = cursor_bitmap[cy][cx];
-            if (p == '.') continue;
-
-            int32_t px = x + cx;
-            int32_t py = y + cy;
-
-            if (px >= 0 && py >= 0 &&
-                px < (int32_t)fb->width &&
-                py < (int32_t)fb->height) {
-                uint32_t col = (p == 'W') ? GMU_WHITE : 0x000F172A;
-                gmu_fb_put_pixel(fb, px, py, col);
-            }
-        }
-    }
-}
-
-static void cursor_hide(gmu_framebuffer_t *fb) {
-    if (!cursor_visible) return;
-
-    for (int32_t cy = 0; cy < CURSOR_H; cy++) {
-        for (int32_t cx = 0; cx < CURSOR_W; cx++) {
-            int32_t px = cursor_saved_x + cx;
-            int32_t py = cursor_saved_y + cy;
-
-            if (px >= 0 && py >= 0 &&
-                px < (int32_t)fb->width &&
-                py < (int32_t)fb->height) {
-                gmu_fb_put_pixel(fb, px, py, cursor_background[cy][cx]);
-            }
-        }
-    }
-    cursor_visible = false;
-}
-
-static void cursor_show(gmu_framebuffer_t *fb, int32_t x, int32_t y) {
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
-
-    cursor_saved_x = x;
-    cursor_saved_y = y;
-
-    for (int32_t cy = 0; cy < CURSOR_H; cy++) {
-        for (int32_t cx = 0; cx < CURSOR_W; cx++) {
-            int32_t sx = x + cx;
-            int32_t sy = y + cy;
-
-            cursor_background[cy][cx] = 0;
-            if (sx < (int32_t)fb->width && sy < (int32_t)fb->height) {
-                cursor_background[cy][cx] = gmu_fb_get_pixel(fb, sx, sy);
-            }
-        }
-    }
-
-    draw_mouse_cursor(fb, x, y);
-    cursor_visible = true;
-}
 
 /* ========================================================================= */
 /* 2. String Formatting Helpers                                             */
@@ -147,6 +64,16 @@ static void update_clock_tray(gmu_framebuffer_t *fb) {
     uint64_t tray_y = 2;
     uint64_t tray_h = 24;
 
+    /* If cursor overlaps tray area, temporarily hide it to prevent visual glitches */
+    int32_t mx = 0, my = 0;
+    gmu_mouse_get_coords(&mx, &my);
+    bool overlap = gmu_mouse_cursor_is_visible() &&
+                   (mx >= (int32_t)tray_x - 16 && mx <= (int32_t)(tray_x + tray_w) &&
+                    my >= (int32_t)tray_y - 16 && my <= (int32_t)(tray_y + tray_h));
+    if (overlap) {
+        cursor_hide(fb);
+    }
+
     /* Clear tray area */
     gmu_fill_rect(fb, tray_x, tray_y, tray_w, tray_h, th->surface);
 
@@ -177,6 +104,10 @@ static void update_clock_tray(gmu_framebuffer_t *fb) {
     char clock_str[24];
     gmu_rtc_get_time_str(clock_str, true);
     gmu_draw_text(fb, tray_x + 344, tray_y + 8, clock_str, th->chiclet_yellow, th->surface);
+
+    if (overlap) {
+        cursor_show(fb, mx, my);
+    }
 }
 
 /* ========================================================================= */
@@ -657,7 +588,6 @@ void gmu_desktop_run(gmu_framebuffer_t *fb) {
     gmu_keyboard_init();
     selected_item = 0;
     menu_open = false;
-    cursor_visible = false;
     last_mouse_x = -100;
     last_mouse_y = -100;
 
@@ -751,6 +681,39 @@ void gmu_desktop_run(gmu_framebuffer_t *fb) {
                     }
                 }
 
+                /* Click on Top Menu Bar Items */
+                if (mouse.y <= 28) {
+                    if (mouse.x >= 106 && mouse.x < 146) {
+                        /* File -> Finder / File Manager */
+                        selected_item = 0; activate = true;
+                    } else if (mouse.x >= 146 && mouse.x < 186) {
+                        /* Edit -> Notepad */
+                        selected_item = 2; activate = true;
+                    } else if (mouse.x >= 186 && mouse.x < 226) {
+                        /* View -> Activity Monitor */
+                        selected_item = 6; activate = true;
+                    } else if (mouse.x >= 226 && mouse.x < 258) {
+                        /* Go -> Terminal Shell */
+                        selected_item = 1; activate = true;
+                    } else if (mouse.x >= 258 && mouse.x < 314) {
+                        /* Window -> System Settings */
+                        selected_item = 9; activate = true;
+                    } else if (mouse.x >= 314 && mouse.x < 360) {
+                        /* Help -> About System Modal */
+                        cursor_hide(fb);
+                        show_about_modal(fb);
+                        gmu_desktop_draw(fb);
+                        cursor_show(fb, mouse.x, mouse.y);
+                        continue;
+                    } else if (mouse.x >= (int32_t)(fb->width - 95)) {
+                        /* Top Tray: Real-Time Clock -> Calendar & Clock App */
+                        selected_item = 5; activate = true;
+                    } else if (mouse.x >= (int32_t)(fb->width - 430)) {
+                        /* Top Tray: Status Badges -> Activity Monitor */
+                        selected_item = 6; activate = true;
+                    }
+                }
+
                 /* Click on Desktop Icons (Left column) */
                 if (mouse.x >= 28 && mouse.x <= 178) {
                     if (mouse.y >= 50 && mouse.y < 106) {
@@ -773,13 +736,59 @@ void gmu_desktop_run(gmu_framebuffer_t *fb) {
                     }
                 }
 
+                /* Click on Trash Icon (Bottom Right) */
+                if (mouse.x >= (int32_t)(fb->width - 105) && mouse.x <= (int32_t)(fb->width - 20) &&
+                    mouse.y >= (int32_t)(fb->height - 150) && mouse.y <= (int32_t)(fb->height - 85)) {
+                    selected_item = 0; activate = true;
+                }
+
+                /* Click on Central Workstation Dashboard Widget */
+                uint64_t card_w = fb->width > 880 ? 560 : fb->width - 80;
+                uint64_t card_h = 190;
+                int32_t card_x = (int32_t)((fb->width - card_w) / 2 + 50);
+                int32_t card_y = (int32_t)((fb->height - card_h) / 2 - 30);
+
+                if (mouse.x >= card_x && mouse.x <= card_x + (int32_t)card_w &&
+                    mouse.y >= card_y && mouse.y <= card_y + (int32_t)card_h) {
+                    /* Red chiclet -> Power modal */
+                    if (mouse.x >= card_x + 10 && mouse.x <= card_x + 24 &&
+                        mouse.y >= card_y + 10 && mouse.y <= card_y + 24) {
+                        cursor_hide(fb);
+                        show_power_modal(fb);
+                        gmu_desktop_draw(fb);
+                        cursor_show(fb, mouse.x, mouse.y);
+                        continue;
+                    }
+                    /* Green chiclet -> About modal */
+                    if (mouse.x >= card_x + 42 && mouse.x <= card_x + 56 &&
+                        mouse.y >= card_y + 10 && mouse.y <= card_y + 24) {
+                        cursor_hide(fb);
+                        show_about_modal(fb);
+                        gmu_desktop_draw(fb);
+                        cursor_show(fb, mouse.x, mouse.y);
+                        continue;
+                    }
+                    /* Clock row -> Calendar */
+                    if (mouse.y >= card_y + 124 && mouse.y <= card_y + 144) {
+                        selected_item = 5; activate = true;
+                    }
+                    /* System Memory / Specs row -> Activity Monitor */
+                    else if (mouse.y >= card_y + 60 && mouse.y <= card_y + 100) {
+                        selected_item = 6; activate = true;
+                    }
+                    /* Filesystem row -> File Manager */
+                    else if (mouse.y >= card_y + 100 && mouse.y <= card_y + 124) {
+                        selected_item = 0; activate = true;
+                    }
+                }
+
                 /* Click on Dock */
                 uint64_t item_w = 68;
                 uint64_t gap = 8;
                 uint64_t dock_w = DOCK_APP_COUNT * item_w + (DOCK_APP_COUNT - 1) * gap + 24;
                 uint64_t dock_x = (fb->width - dock_w) / 2;
                 int32_t dock_top = (int32_t)fb->height - 66;
-                int32_t dock_bottom = dock_top + 54;
+                int32_t dock_bottom = (int32_t)fb->height;
 
                 if (mouse.y >= dock_top && mouse.y < dock_bottom) {
                     int32_t rel_x = mouse.x - (int32_t)dock_x - 12;

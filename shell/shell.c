@@ -767,6 +767,9 @@ void gmu_shell_run(gmu_framebuffer_t *fb) {
     gmu_keyboard_init();
     gmu_mouse_t mouse = {0};
     bool mouse_ready = gmu_mouse_init(&mouse, fb->width, fb->height);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
 
     for (;;) {
         char prompt[64] = "GMU [";
@@ -789,8 +792,13 @@ void gmu_shell_run(gmu_framebuffer_t *fb) {
         input[0] = '\0';
 
         for (;;) {
-            if (mouse_ready) {
-                gmu_mouse_poll(&mouse);
+            if (mouse_ready && gmu_mouse_poll(&mouse)) {
+                gmu_mouse_cursor_update(fb, mouse.x, mouse.y);
+                if (mouse.buttons & 2) {
+                    /* Right-click returns to GUI desktop */
+                    gmu_mouse_cursor_hide(fb);
+                    return;
+                }
             }
 
             uint16_t key = gmu_keyboard_read_key();
@@ -806,6 +814,7 @@ void gmu_shell_run(gmu_framebuffer_t *fb) {
 
             if (key == GMU_KEY_ESCAPE) {
                 if (length == 0) {
+                    if (mouse_ready) gmu_mouse_cursor_hide(fb);
                     return; /* Return to desktop */
                 }
                 length = 0;
@@ -888,6 +897,7 @@ void gmu_shell_run(gmu_framebuffer_t *fb) {
         }
 
         if (!execute_command(fb, input)) {
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             return; /* Return to desktop */
         }
     }

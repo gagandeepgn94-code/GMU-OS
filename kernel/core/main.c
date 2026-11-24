@@ -7,6 +7,7 @@
 #include <gmu/font.h>
 #include <gmu/shell.h>
 #include <gmu/ps2.h>
+#include <gmu/mouse.h>
 #include <gmu/fs.h>
 #include <gmu/app.h>
 #include <gmu/file_manager.h>
@@ -222,9 +223,13 @@ void _start(void) {
     }
     serial_print("[OK] Framebuffer driver initialized\r\n");
 
-    /* Initialize PS/2 controller */
+    /* Initialize PS/2 controller and Hardware Mouse */
     gmu_ps2_init();
-    serial_print("[OK] PS/2 Input Subsystem initialized\r\n");
+    if (gmu_mouse_init(0, fb->width, fb->height)) {
+        serial_print("[OK] PS/2 Mouse & Input Subsystem initialized\r\n");
+    } else {
+        serial_print("[OK] PS/2 Input Subsystem initialized\r\n");
+    }
 
     serial_print("----------------------------------------\r\n");
     serial_print("  System Ready. Starting GMU Desktop... \r\n");

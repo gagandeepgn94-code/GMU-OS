@@ -225,6 +225,10 @@ void gmu_minesweeper_run(gmu_framebuffer_t *fb) {
 
     init_minesweeper();
     draw_minesweeper(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
+    uint8_t prev_buttons = 0;
 
     uint64_t ww = MS_COLS * CELL_PX + 36;
     uint64_t wh = MS_ROWS * CELL_PX + 92;
@@ -237,51 +241,92 @@ void gmu_minesweeper_run(gmu_framebuffer_t *fb) {
         uint16_t key = gmu_keyboard_read_key();
 
         if (key == GMU_KEY_ESCAPE) {
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             break;
         } else if (key == 'r' || key == 'R') {
             init_minesweeper();
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             draw_minesweeper(fb);
+            if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
         } else if (key == GMU_KEY_LEFT || key == 'a' || key == 'A') {
             if (cursor_c > 0) cursor_c--;
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             draw_minesweeper(fb);
+            if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
         } else if (key == GMU_KEY_RIGHT || key == 'd' || key == 'D') {
             if (cursor_c < MS_COLS - 1) cursor_c++;
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             draw_minesweeper(fb);
+            if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
         } else if (key == GMU_KEY_UP || key == 'w' || key == 'W') {
             if (cursor_r > 0) cursor_r--;
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             draw_minesweeper(fb);
+            if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
         } else if (key == GMU_KEY_DOWN || key == 's' || key == 'S') {
             if (cursor_r < MS_ROWS - 1) cursor_r++;
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             draw_minesweeper(fb);
+            if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
         } else if (key == ' ' || key == '\n' || key == GMU_KEY_ENTER) {
             if (!ms_game_over) {
                 reveal_cell(cursor_r, cursor_c);
+                if (mouse_ready) gmu_mouse_cursor_hide(fb);
                 draw_minesweeper(fb);
+                if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
             }
         } else if (key == 'f' || key == 'F') {
             if (!ms_game_over && !board[cursor_r][cursor_c].is_revealed) {
                 board[cursor_r][cursor_c].is_flagged = !board[cursor_r][cursor_c].is_flagged;
+                if (mouse_ready) gmu_mouse_cursor_hide(fb);
                 draw_minesweeper(fb);
+                if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
             }
         }
 
         /* Mouse interaction */
         if (mouse_ready && gmu_mouse_poll(&mouse)) {
+            gmu_mouse_cursor_update(fb, mouse.x, mouse.y);
+            bool left_click = (mouse.buttons & 1) && !(prev_buttons & 1);
+            bool right_click = (mouse.buttons & 2) && !(prev_buttons & 2);
+            prev_buttons = mouse.buttons;
+
+            if (left_click) {
+                /* Click Red Close Chiclet */
+                if (mouse.x >= (int32_t)(wx + 10) && mouse.x <= (int32_t)(wx + 24) &&
+                    mouse.y >= (int32_t)(wy + 10) && mouse.y <= (int32_t)(wy + 24)) {
+                    gmu_mouse_cursor_hide(fb);
+                    break;
+                }
+                /* Click Restart Smiley / Face button */
+                if (mouse.x >= (int32_t)(wx + ww / 2 - 24) && mouse.x <= (int32_t)(wx + ww / 2 + 24) &&
+                    mouse.y >= (int32_t)(wy + 36) && mouse.y <= (int32_t)(wy + 68)) {
+                    init_minesweeper();
+                    gmu_mouse_cursor_hide(fb);
+                    draw_minesweeper(fb);
+                    gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+                }
+            }
+
             if (mouse.x >= (int32_t)bx && mouse.x < (int32_t)(bx + MS_COLS * CELL_PX) &&
                 mouse.y >= (int32_t)by && mouse.y < (int32_t)(by + MS_ROWS * CELL_PX)) {
                 cursor_c = (mouse.x - bx) / CELL_PX;
                 cursor_r = (mouse.y - by) / CELL_PX;
 
-                if (mouse.buttons & 1) { /* Left click */
+                if (left_click) {
                     if (!ms_game_over) {
                         reveal_cell(cursor_r, cursor_c);
                     }
+                    gmu_mouse_cursor_hide(fb);
                     draw_minesweeper(fb);
-                } else if (mouse.buttons & 2) { /* Right click */
+                    gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+                } else if (right_click) {
                     if (!ms_game_over && !board[cursor_r][cursor_c].is_revealed) {
                         board[cursor_r][cursor_c].is_flagged = !board[cursor_r][cursor_c].is_flagged;
                     }
+                    gmu_mouse_cursor_hide(fb);
                     draw_minesweeper(fb);
+                    gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
                 }
             }
         }

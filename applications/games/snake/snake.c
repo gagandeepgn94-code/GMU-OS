@@ -146,12 +146,16 @@ void gmu_snake_run(gmu_framebuffer_t *fb) {
     uint64_t gy = wy + 62;
 
     draw_snake_game(fb, gx, gy, gw, gh, wx, wy, ww, wh);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
 
     uint64_t last_move_time = gmu_timer_ms();
 
     for (;;) {
         /* Mouse Input */
         if (mouse_ready && gmu_mouse_poll(&mouse)) {
+            gmu_mouse_cursor_update(fb, mouse.x, mouse.y);
             bool left_click = (mouse.buttons & 1) && !(prev_buttons & 1);
             prev_buttons = mouse.buttons;
 
@@ -159,17 +163,29 @@ void gmu_snake_run(gmu_framebuffer_t *fb) {
                 /* Click Red Close Chiclet */
                 if (mouse.x >= (int32_t)(wx + 10) && mouse.x <= (int32_t)(wx + 24) &&
                     mouse.y >= (int32_t)(wy + 10) && mouse.y <= (int32_t)(wy + 24)) {
+                    gmu_mouse_cursor_hide(fb);
                     break;
+                }
+                /* Click to Restart on Game Over */
+                if (game_over) {
+                    reset_snake();
+                    gmu_mouse_cursor_hide(fb);
+                    draw_snake_game(fb, gx, gy, gw, gh, wx, wy, ww, wh);
+                    gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
                 }
             }
         }
 
         uint16_t key = gmu_keyboard_read_key();
         if (key == GMU_KEY_ESCAPE) {
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             break;
         } else if (key == 'r' || key == 'R') {
             reset_snake();
             draw_snake_game(fb, gx, gy, gw, gh, wx, wy, ww, wh);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if ((key == GMU_KEY_UP || key == 'w' || key == 'W') && dir_y == 0) {
             dir_x = 0; dir_y = -1;
         } else if ((key == GMU_KEY_DOWN || key == 's' || key == 'S') && dir_y == 0) {
@@ -222,6 +238,9 @@ void gmu_snake_run(gmu_framebuffer_t *fb) {
             }
 
             draw_snake_game(fb, gx, gy, gw, gh, wx, wy, ww, wh);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         }
 
         __asm__ volatile ("pause");

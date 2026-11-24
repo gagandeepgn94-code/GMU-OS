@@ -163,10 +163,24 @@ void gmu_breakout_run(gmu_framebuffer_t *fb) {
 
         /* Mouse tracking for paddle */
         if (mouse_ready && gmu_mouse_poll(&mouse)) {
-            if (mouse.x >= (int32_t)ax && mouse.x <= (int32_t)(ax + aw)) {
+            if (mouse.x >= (int32_t)ax && mouse.x <= (int32_t)(ax + aw) &&
+                mouse.y >= (int32_t)ay && mouse.y <= (int32_t)(ay + ah)) {
                 paddle_x = (mouse.x - ax) - (paddle_w / 2);
                 if (paddle_x < 5) paddle_x = 5;
                 if (paddle_x > (int)aw - paddle_w - 5) paddle_x = (int)aw - paddle_w - 5;
+            }
+
+            if (mouse.buttons & 1) {
+                /* Click Red Close Chiclet */
+                if (mouse.x >= (int32_t)(wx + 10) && mouse.x <= (int32_t)(wx + 24) &&
+                    mouse.y >= (int32_t)(wy + 10) && mouse.y <= (int32_t)(wy + 24)) {
+                    break;
+                }
+                /* Click to Restart on Game Over or Won */
+                if (bo_game_over || bo_game_won) {
+                    reset_breakout();
+                    draw_breakout(fb, ax, ay, aw, ah, wx, wy, ww, wh);
+                }
             }
         }
 

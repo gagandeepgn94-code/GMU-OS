@@ -207,6 +207,9 @@ void gmu_monitor_run(gmu_framebuffer_t *fb) {
     uint8_t prev_buttons = 0;
 
     draw_monitor_screen(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
 
     uint64_t win_w = fb->width > 860 ? 800 : fb->width - 40;
     uint64_t win_h = fb->height > 600 ? 530 : fb->height - 50;
@@ -219,11 +222,14 @@ void gmu_monitor_run(gmu_framebuffer_t *fb) {
         uint64_t cur_sec = gmu_timer_seconds();
         if (cur_sec != last_sec) {
             last_sec = cur_sec;
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             draw_monitor_screen(fb);
+            if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
         }
 
         /* Mouse Input */
         if (mouse_ready && gmu_mouse_poll(&mouse)) {
+            gmu_mouse_cursor_update(fb, mouse.x, mouse.y);
             bool left_click = (mouse.buttons & 1) && !(prev_buttons & 1);
             prev_buttons = mouse.buttons;
 
@@ -231,6 +237,7 @@ void gmu_monitor_run(gmu_framebuffer_t *fb) {
                 /* Click Red Close Chiclet */
                 if (mouse.x >= (int32_t)(win_x + 10) && mouse.x <= (int32_t)(win_x + 24) &&
                     mouse.y >= (int32_t)(win_y + 10) && mouse.y <= (int32_t)(win_y + 24)) {
+                    gmu_mouse_cursor_hide(fb);
                     break;
                 }
             }
@@ -238,9 +245,12 @@ void gmu_monitor_run(gmu_framebuffer_t *fb) {
 
         uint16_t key = gmu_keyboard_read_key();
         if (key == GMU_KEY_ESCAPE) {
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             break; /* Exit */
         } else if (key == 'r' || key == 'R') {
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             draw_monitor_screen(fb);
+            if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
         }
 
         __asm__ volatile ("pause");

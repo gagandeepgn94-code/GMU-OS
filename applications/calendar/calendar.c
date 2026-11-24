@@ -271,6 +271,9 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
     view_month = now.month;
 
     draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
 
     uint8_t last_s = now.second;
     uint64_t last_ticks = gmu_timer_ticks();
@@ -307,10 +310,14 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
             }
 
             draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         }
 
         /* Mouse Input */
         if (mouse_ready && gmu_mouse_poll(&mouse)) {
+            gmu_mouse_cursor_update(fb, mouse.x, mouse.y);
             bool left_click = (mouse.buttons & 1) && !(prev_buttons & 1);
             prev_buttons = mouse.buttons;
 
@@ -318,6 +325,7 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
                 /* Click Red Close Chiclet */
                 if (mouse.x >= (int32_t)(wx + 10) && mouse.x <= (int32_t)(wx + 26) &&
                     mouse.y >= (int32_t)(wy + 10) && mouse.y <= (int32_t)(wy + 26)) {
+                    gmu_mouse_cursor_hide(fb);
                     break;
                 }
 
@@ -327,6 +335,9 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
                     if (view_month > 1) view_month--;
                     else { view_month = 12; view_year--; }
                     draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                 }
 
                 /* Click Next Month [N] */
@@ -335,6 +346,9 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
                     if (view_month < 12) view_month++;
                     else { view_month = 1; view_year++; }
                     draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                 }
 
                 /* Click Today Banner -> Jump to Today */
@@ -344,6 +358,9 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
                     view_month = now.month;
                     view_year = now.year;
                     draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                 }
 
                 /* Click Stopwatch [S] Start/Pause */
@@ -358,6 +375,9 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
                         stopwatch_running = true;
                     }
                     draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                 }
 
                 /* Click Stopwatch [R] Reset */
@@ -366,6 +386,9 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
                     stopwatch_running = false;
                     stopwatch_elapsed_ms = 0;
                     draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                 }
             }
         }
@@ -373,21 +396,31 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
         /* Keyboard Input */
         uint16_t key = gmu_keyboard_read_key();
         if (key == GMU_KEY_ESCAPE) {
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             break;
         } else if (key == 'n' || key == 'N' || key == GMU_KEY_RIGHT) {
             if (view_month < 12) view_month++;
             else { view_month = 1; view_year++; }
             draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == 'p' || key == 'P' || key == GMU_KEY_LEFT) {
             if (view_month > 1) view_month--;
             else { view_month = 12; view_year--; }
             draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == 't' || key == 'T') {
             /* Return to Today */
             gmu_rtc_read(&now);
             view_month = now.month;
             view_year = now.year;
             draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == 's' || key == 'S') {
             if (stopwatch_running) {
                 uint64_t ticks = gmu_timer_ticks();
@@ -398,10 +431,16 @@ void gmu_calendar_run(gmu_framebuffer_t *fb) {
                 stopwatch_running = true;
             }
             draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == 'r' || key == 'R') {
             stopwatch_running = false;
             stopwatch_elapsed_ms = 0;
             draw_calendar_view(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         }
 
         __asm__ volatile ("pause");

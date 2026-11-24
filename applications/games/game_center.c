@@ -88,6 +88,9 @@ void gmu_game_center_run(gmu_framebuffer_t *fb) {
     uint8_t prev_buttons = 0;
 
     draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
 
     uint64_t ww = fb->width > 860 ? 760 : fb->width - 40;
     uint64_t wh = fb->height > 600 ? 480 : fb->height - 50;
@@ -100,6 +103,7 @@ void gmu_game_center_run(gmu_framebuffer_t *fb) {
     for (;;) {
         /* Mouse Input */
         if (mouse_ready && gmu_mouse_poll(&mouse)) {
+            gmu_mouse_cursor_update(fb, mouse.x, mouse.y);
             bool left_click = (mouse.buttons & 1) && !(prev_buttons & 1);
             prev_buttons = mouse.buttons;
 
@@ -107,6 +111,7 @@ void gmu_game_center_run(gmu_framebuffer_t *fb) {
                 /* Click Red Close Chiclet */
                 if (mouse.x >= (int32_t)(wx + 10) && mouse.x <= (int32_t)(wx + 24) &&
                     mouse.y >= (int32_t)(wy + 10) && mouse.y <= (int32_t)(wy + 24)) {
+                    gmu_mouse_cursor_hide(fb);
                     break;
                 }
 
@@ -125,6 +130,9 @@ void gmu_game_center_run(gmu_framebuffer_t *fb) {
                         else if (i == 2) gmu_app_launch(GMU_APP_MINESWEEPER, fb);
                         else if (i == 3) gmu_app_launch(GMU_APP_BREAKOUT, fb);
                         draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
                         break;
                     }
                 }
@@ -133,37 +141,65 @@ void gmu_game_center_run(gmu_framebuffer_t *fb) {
 
         uint16_t key = gmu_keyboard_read_key();
         if (key == GMU_KEY_ESCAPE) {
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             break;
         } else if (key == '1') {
             gmu_app_launch(GMU_APP_SHOOTER, fb);
             draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == '2') {
             gmu_app_launch(GMU_APP_SNAKE, fb);
             draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == '3') {
             gmu_app_launch(GMU_APP_MINESWEEPER, fb);
             draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == '4') {
             gmu_app_launch(GMU_APP_BREAKOUT, fb);
             draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == GMU_KEY_UP || key == 'w' || key == 'W') {
             selected_game = (selected_game + 2) % 4;
             draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == GMU_KEY_DOWN || key == 's' || key == 'S') {
             selected_game = (selected_game + 2) % 4;
             draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == GMU_KEY_LEFT || key == 'a' || key == 'A') {
             selected_game = (selected_game + 3) % 4;
             draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == GMU_KEY_RIGHT || key == 'd' || key == 'D') {
             selected_game = (selected_game + 1) % 4;
             draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         } else if (key == '\n' || key == GMU_KEY_ENTER || key == ' ') {
             if (selected_game == 0) gmu_app_launch(GMU_APP_SHOOTER, fb);
             else if (selected_game == 1) gmu_app_launch(GMU_APP_SNAKE, fb);
             else if (selected_game == 2) gmu_app_launch(GMU_APP_MINESWEEPER, fb);
             else if (selected_game == 3) gmu_app_launch(GMU_APP_BREAKOUT, fb);
             draw_game_center_window(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
         }
 
         __asm__ volatile ("pause");

@@ -100,6 +100,9 @@ void gmu_paint_run(gmu_framebuffer_t *fb) {
     /* Initialize blank white canvas */
     gmu_fill_rect(fb, cx, cy, cw, ch, GMU_WHITE);
     draw_paint_ui(fb, cx, cy, cw, ch, wx, wy, ww, wh);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
 
     int32_t pen_x = cx + cw / 2;
     int32_t pen_y = cy + ch / 2;
@@ -109,6 +112,7 @@ void gmu_paint_run(gmu_framebuffer_t *fb) {
         bool drawing = false;
 
         if (key == GMU_KEY_ESCAPE) {
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             break;
         } else if (key >= '0' && key <= '9') {
             current_color_idx = key - '0';
@@ -137,6 +141,15 @@ void gmu_paint_run(gmu_framebuffer_t *fb) {
         if (mouse_ready && gmu_mouse_poll(&mouse)) {
             pen_x = mouse.x;
             pen_y = mouse.y;
+            bool on_canvas = (pen_x >= (int32_t)cx && pen_x < (int32_t)(cx + cw) &&
+                              pen_y >= (int32_t)cy && pen_y < (int32_t)(cy + ch));
+
+            if (!on_canvas || !(mouse.buttons & 1)) {
+                gmu_mouse_cursor_update(fb, mouse.x, mouse.y);
+            } else {
+                gmu_mouse_cursor_hide(fb);
+            }
+
             bool left_click = (mouse.buttons & 1) && !(prev_buttons & 1);
             prev_buttons = mouse.buttons;
 
@@ -144,6 +157,7 @@ void gmu_paint_run(gmu_framebuffer_t *fb) {
                 /* Red Close Chiclet */
                 if (mouse.x >= (int32_t)(wx + 10) && mouse.x <= (int32_t)(wx + 24) &&
                     mouse.y >= (int32_t)(wy + 10) && mouse.y <= (int32_t)(wy + 24)) {
+                    gmu_mouse_cursor_hide(fb);
                     break;
                 }
                 /* Toolbar Color clicks */
@@ -154,14 +168,18 @@ void gmu_paint_run(gmu_framebuffer_t *fb) {
                         uint64_t sy = tool_y + 28 + i * 22;
                         if (mouse.y >= (int32_t)sy && mouse.y <= (int32_t)(sy + 20)) {
                             current_color_idx = (uint32_t)i;
+                            gmu_mouse_cursor_hide(fb);
                             draw_paint_ui(fb, cx, cy, cw, ch, wx, wy, ww, wh);
+                            gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
                             break;
                         }
                     }
                     /* Clear canvas button on toolbar */
                     uint64_t brush_y = tool_y + 28 + PALETTE_SIZE * 22 + 10;
                     if (mouse.y >= (int32_t)(brush_y + 44) && mouse.y <= (int32_t)(brush_y + 58)) {
+                        gmu_mouse_cursor_hide(fb);
                         gmu_fill_rect(fb, cx, cy, cw, ch, GMU_WHITE);
+                        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
                     }
                 }
             }

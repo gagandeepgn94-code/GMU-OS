@@ -145,73 +145,12 @@ static bool evaluate_expr(const char *s, int64_t *out_val) {
 }
 
 /* ========================================================================= */
-/* 3. High-Resolution Cursor for Calculator                                  */
+/* 3. Universal Cursor for Calculator                                        */
 /* ========================================================================= */
 
-#define CURSOR_W 16
-#define CURSOR_H 16
+#define cursor_show(fb, x, y)   gmu_mouse_cursor_show((fb), (x), (y))
+#define cursor_hide(fb)         gmu_mouse_cursor_hide((fb))
 
-static const char *calc_cursor_bitmap[CURSOR_H] = {
-    "B...............",
-    "BB..............",
-    "BWB.............",
-    "BWWWB...........",
-    "BWWWWWB.........",
-    "BWWWWWWWB.......",
-    "BWWWWWWWWWB.....",
-    "BWWWWWWWWWWWB...",
-    "BWWWWWWWWWWWWWB.",
-    "BWWWWWWWWWWBB...",
-    "BWWWWWWBBBBB....",
-    "BWWWBWWWB.......",
-    "BWWB.BWWWB......",
-    "BBB...BWWWB.....",
-    "B......BWWWB....",
-    "........BBB....."
-};
-
-static uint32_t calc_cursor_bg[CURSOR_H][CURSOR_W];
-static int32_t calc_cursor_x = 0;
-static int32_t calc_cursor_y = 0;
-static bool calc_cursor_vis = false;
-
-static void cursor_hide(gmu_framebuffer_t *fb) {
-    if (!calc_cursor_vis) return;
-    for (int32_t cy = 0; cy < CURSOR_H; cy++) {
-        for (int32_t cx = 0; cx < CURSOR_W; cx++) {
-            int32_t px = calc_cursor_x + cx;
-            int32_t py = calc_cursor_y + cy;
-            if (px >= 0 && py >= 0 && px < (int32_t)fb->width && py < (int32_t)fb->height) {
-                gmu_fb_put_pixel(fb, px, py, calc_cursor_bg[cy][cx]);
-            }
-        }
-    }
-    calc_cursor_vis = false;
-}
-
-static void cursor_show(gmu_framebuffer_t *fb, int32_t x, int32_t y) {
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
-    calc_cursor_x = x;
-    calc_cursor_y = y;
-
-    for (int32_t cy = 0; cy < CURSOR_H; cy++) {
-        for (int32_t cx = 0; cx < CURSOR_W; cx++) {
-            int32_t sx = x + cx;
-            int32_t sy = y + cy;
-            calc_cursor_bg[cy][cx] = 0;
-            if (sx < (int32_t)fb->width && sy < (int32_t)fb->height) {
-                calc_cursor_bg[cy][cx] = gmu_fb_get_pixel(fb, sx, sy);
-            }
-            char p = calc_cursor_bitmap[cy][cx];
-            if (p != '.') {
-                uint32_t col = (p == 'W') ? GMU_WHITE : 0x000F172A;
-                gmu_fb_put_pixel(fb, sx, sy, col);
-            }
-        }
-    }
-    calc_cursor_vis = true;
-}
 
 /* ========================================================================= */
 /* 4. Calculator GUI Rendering                                              */
@@ -335,7 +274,6 @@ void gmu_calculator_run(gmu_framebuffer_t *fb) {
     result_str[1] = '\0';
     history_str[0] = '\0';
 
-    calc_cursor_vis = false;
     draw_calculator(fb, 0);
 
     if (mouse_ready) {

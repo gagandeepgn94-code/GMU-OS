@@ -548,18 +548,23 @@ void gmu_file_manager_run(gmu_framebuffer_t *fb) {
     uint8_t prev_buttons = 0;
 
     draw_file_manager(fb);
+    if (mouse_ready) {
+        gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
+    }
 
     for (;;) {
         bool needs_redraw = false;
 
         /* Mouse Input */
         if (mouse_ready && gmu_mouse_poll(&mouse)) {
+            gmu_mouse_cursor_update(fb, mouse.x, mouse.y);
             bool left_click = (mouse.buttons & 1) && !(prev_buttons & 1);
             prev_buttons = mouse.buttons;
 
             if (left_click) {
                 /* Click Red Close Chiclet */
                 if (mouse.x >= 10 && mouse.x <= 26 && mouse.y >= 8 && mouse.y <= 24) {
+                    gmu_mouse_cursor_hide(fb);
                     return;
                 }
 
@@ -656,7 +661,10 @@ void gmu_file_manager_run(gmu_framebuffer_t *fb) {
 
         uint16_t key = gmu_keyboard_read_key();
         if (key != 0) {
-            if (key == GMU_KEY_ESCAPE) return;
+            if (key == GMU_KEY_ESCAPE) {
+                if (mouse_ready) gmu_mouse_cursor_hide(fb);
+                return;
+            }
 
             if (key == 'E' || key == 'e') {
                 int32_t cid = get_fm_child(selected_index);
@@ -769,7 +777,9 @@ void gmu_file_manager_run(gmu_framebuffer_t *fb) {
         }
 
         if (needs_redraw) {
+            if (mouse_ready) gmu_mouse_cursor_hide(fb);
             draw_file_manager(fb);
+            if (mouse_ready) gmu_mouse_cursor_show(fb, mouse.x, mouse.y);
         }
 
         __asm__ volatile ("pause");

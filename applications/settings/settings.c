@@ -33,73 +33,12 @@ static const char *category_icons[SETTINGS_CATEGORY_COUNT] = {
 };
 
 /* ========================================================================= */
-/* 1. Cursor Engine for Settings                                            */
+/* 1. Universal Cursor for Settings                                          */
 /* ========================================================================= */
 
-#define CURSOR_W 16
-#define CURSOR_H 16
+#define cursor_show(fb, x, y)   gmu_mouse_cursor_show((fb), (x), (y))
+#define cursor_hide(fb)         gmu_mouse_cursor_hide((fb))
 
-static const char *settings_cursor_bitmap[CURSOR_H] = {
-    "B...............",
-    "BB..............",
-    "BWB.............",
-    "BWWWB...........",
-    "BWWWWWB.........",
-    "BWWWWWWWB.......",
-    "BWWWWWWWWWB.....",
-    "BWWWWWWWWWWWB...",
-    "BWWWWWWWWWWWWWB.",
-    "BWWWWWWWWWWBB...",
-    "BWWWWWWBBBBB....",
-    "BWWWBWWWB.......",
-    "BWWB.BWWWB......",
-    "BBB...BWWWB.....",
-    "B......BWWWB....",
-    "........BBB....."
-};
-
-static uint32_t settings_cursor_bg[CURSOR_H][CURSOR_W];
-static int32_t settings_cursor_x = 0;
-static int32_t settings_cursor_y = 0;
-static bool settings_cursor_vis = false;
-
-static void cursor_hide(gmu_framebuffer_t *fb) {
-    if (!settings_cursor_vis) return;
-    for (int32_t cy = 0; cy < CURSOR_H; cy++) {
-        for (int32_t cx = 0; cx < CURSOR_W; cx++) {
-            int32_t px = settings_cursor_x + cx;
-            int32_t py = settings_cursor_y + cy;
-            if (px >= 0 && py >= 0 && px < (int32_t)fb->width && py < (int32_t)fb->height) {
-                gmu_fb_put_pixel(fb, px, py, settings_cursor_bg[cy][cx]);
-            }
-        }
-    }
-    settings_cursor_vis = false;
-}
-
-static void cursor_show(gmu_framebuffer_t *fb, int32_t x, int32_t y) {
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
-    settings_cursor_x = x;
-    settings_cursor_y = y;
-
-    for (int32_t cy = 0; cy < CURSOR_H; cy++) {
-        for (int32_t cx = 0; cx < CURSOR_W; cx++) {
-            int32_t sx = x + cx;
-            int32_t sy = y + cy;
-            settings_cursor_bg[cy][cx] = 0;
-            if (sx < (int32_t)fb->width && sy < (int32_t)fb->height) {
-                settings_cursor_bg[cy][cx] = gmu_fb_get_pixel(fb, sx, sy);
-            }
-            char p = settings_cursor_bitmap[cy][cx];
-            if (p != '.') {
-                uint32_t col = (p == 'W') ? GMU_WHITE : 0x000F172A;
-                gmu_fb_put_pixel(fb, sx, sy, col);
-            }
-        }
-    }
-    settings_cursor_vis = true;
-}
 
 /* ========================================================================= */
 /* 2. Format Number Helper                                                   */
@@ -332,7 +271,6 @@ void gmu_settings_run(gmu_framebuffer_t *fb) {
     bool mouse_ready = gmu_mouse_init(&mouse, fb->width, fb->height);
     uint8_t prev_buttons = 0;
 
-    settings_cursor_vis = false;
     draw_settings_window(fb);
 
     if (mouse_ready) {
