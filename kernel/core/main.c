@@ -12,6 +12,7 @@
 #include <gmu/file_manager.h>
 #include <gmu/idt.h>
 #include <gmu/timer.h>
+#include <gmu/rtc.h>
 #include <gmu/pmm.h>
 #include <gmu/heap.h>
 #include <gmu/shooter.h>
@@ -151,6 +152,14 @@ void _start(void) {
     /* Initialize PIC & PIT timer at 100 Hz */
     gmu_timer_init();
     serial_print("[OK] 8254 PIT Timer initialized (100 Hz)\r\n");
+
+    /* Initialize Hardware Real-Time Clock (RTC/CMOS) */
+    gmu_rtc_init();
+    char rtc_init_str[64];
+    gmu_rtc_get_full_str(rtc_init_str);
+    serial_print("[OK] Real-Time Clock active: ");
+    serial_print(rtc_init_str);
+    serial_print("\r\n");
 
     /* Initialize Physical Memory Manager */
     if (memmap_request.response) {

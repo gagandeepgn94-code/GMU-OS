@@ -11,6 +11,7 @@
 #include <gmu/pmm.h>
 #include <gmu/heap.h>
 #include <gmu/timer.h>
+#include <gmu/rtc.h>
 #include <gmu/editor.h>
 #include <gmu/calculator.h>
 #include <gmu/monitor.h>
@@ -112,12 +113,14 @@ static void cmd_help(gmu_framebuffer_t *fb) {
     print_line(fb, "  RM <name>           - Delete file or empty directory", TERM_TEXT);
     print_line(fb, "  STAT <name>         - View node details & size", TERM_TEXT);
     print_line(fb, "SYSTEM & UTILITIES:", TERM_YELLOW);
+    print_line(fb, "  TIME / CLOCK        - Hardware Real-Time Clock (RTC)", TERM_TEXT);
+    print_line(fb, "  DATE                - Current calendar date & weekday", TERM_TEXT);
+    print_line(fb, "  UPTIME              - System running time since boot", TERM_TEXT);
     print_line(fb, "  SYSINFO             - System hardware specs & banner", TERM_TEXT);
     print_line(fb, "  MEM                 - Physical & heap memory stats", TERM_TEXT);
-    print_line(fb, "  UPTIME              - System running time", TERM_TEXT);
     print_line(fb, "  EDIT / NOTEPAD [f]  - Launch GUI Notepad text editor", TERM_TEXT);
     print_line(fb, "  PAINT               - Launch Paint & Pixel Art Studio", TERM_TEXT);
-    print_line(fb, "  CALENDAR / CLOCK    - Launch Calendar, World Clock & Stopwatch", TERM_TEXT);
+    print_line(fb, "  CALENDAR / CAL      - Launch Calendar, World Clock & Stopwatch", TERM_TEXT);
     print_line(fb, "  HEXVIEW / HEX [f]   - Hex & Memory Inspector", TERM_TEXT);
     print_line(fb, "  CALC [expression]   - Graphical or inline calculator", TERM_TEXT);
     print_line(fb, "  MONITOR / TOP       - Launch Activity Monitor", TERM_TEXT);
@@ -351,6 +354,82 @@ static void cmd_mem(gmu_framebuffer_t *fb) {
     print_line(fb, l4, TERM_YELLOW);
 }
 
+static void cmd_time(gmu_framebuffer_t *fb) {
+    gmu_time_t t;
+    gmu_rtc_read(&t);
+
+    char time_str[16];
+    gmu_rtc_get_time_str(time_str, true);
+
+    char line[64] = "Hardware Time: ";
+    int p = 15;
+    const char *ts = time_str;
+    while (*ts && p < 63) line[p++] = *ts++;
+    line[p] = '\0';
+    print_line(fb, line, TERM_GREEN);
+
+    /* Also show 12-hour AM/PM format */
+    uint8_t h12 = t.hour % 12;
+    if (h12 == 0) h12 = 12;
+    const char *ampm = (t.hour >= 12) ? "PM" : "AM";
+    char line12[64] = "Standard:      ";
+    p = 15;
+    if (h12 < 10) line12[p++] = '0';
+    char hbuf[8]; format_num(h12, hbuf);
+    const char *ph = hbuf; while (*ph) line12[p++] = *ph++;
+    line12[p++] = ':';
+    if (t.minute < 10) line12[p++] = '0';
+    char mbuf[8]; format_num(t.minute, mbuf);
+    const char *pm = mbuf; while (*pm) line12[p++] = *pm++;
+    line12[p++] = ':';
+    if (t.second < 10) line12[p++] = '0';
+    char sbuf[8]; format_num(t.second, sbuf);
+    const char *ps = sbuf; while (*ps) line12[p++] = *ps++;
+    line12[p++] = ' ';
+    line12[p++] = ampm[0];
+    line12[p++] = ampm[1];
+    line12[p] = '\0';
+    print_line(fb, line12, TERM_CYAN);
+}
+
+static void cmd_date(gmu_framebuffer_t *fb) {
+    gmu_time_t t;
+    gmu_rtc_read(&t);
+
+    const char *day_names[] = {
+        "Sunday", "Monday", "Tuesday", "Wednesday",
+        "Thursday", "Friday", "Saturday"
+    };
+    const char *month_names[] = {
+        "???", "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    };
+
+    uint8_t dow = gmu_rtc_day_of_week(t.year, t.month, t.day);
+    const char *dname = (dow < 7) ? day_names[dow] : "Unknown";
+    const char *mname = (t.month >= 1 && t.month <= 12) ? month_names[t.month] : "Unknown";
+
+    char date_str[16];
+    gmu_rtc_get_date_str(date_str);
+
+    char line[80] = "Date: ";
+    int p = 6;
+    const char *dn = dname; while (*dn && p < 25) line[p++] = *dn++;
+    line[p++] = ','; line[p++] = ' ';
+    const char *mn = mname; while (*mn && p < 45) line[p++] = *mn++;
+    line[p++] = ' ';
+    char dbuf[8]; format_num(t.day, dbuf);
+    const char *pd = dbuf; while (*pd && p < 55) line[p++] = *pd++;
+    line[p++] = ','; line[p++] = ' ';
+    char ybuf[8]; format_num(t.year, ybuf);
+    const char *py = ybuf; while (*py && p < 70) line[p++] = *py++;
+    line[p++] = ' '; line[p++] = '(';
+    const char *ds = date_str; while (*ds && p < 78) line[p++] = *ds++;
+    line[p++] = ')';
+    line[p] = '\0';
+    print_line(fb, line, TERM_GREEN);
+}
+
 static void cmd_uptime(gmu_framebuffer_t *fb) {
     uint64_t total_sec = gmu_timer_seconds();
     uint64_t hrs = total_sec / 3600;
@@ -372,6 +451,12 @@ static void cmd_uptime(gmu_framebuffer_t *fb) {
     line[p++] = ':';
     if (secs < 10) line[p++] = '0';
     const char *ps = s; while (*ps) line[p++] = *ps++;
+    line[p++] = ' ';
+    line[p++] = '(';
+    char sec_buf[16]; format_num(total_sec, sec_buf);
+    const char *psec = sec_buf; while (*psec && p < 58) line[p++] = *psec++;
+    line[p++] = 's';
+    line[p++] = ')';
     line[p] = '\0';
     print_line(fb, line, TERM_GREEN);
 }
@@ -494,6 +579,10 @@ static bool execute_command(gmu_framebuffer_t *fb, const char *command) {
         cmd_sysinfo(fb);
     } else if (str_equals(cmd, "MEM")) {
         cmd_mem(fb);
+    } else if (str_equals(cmd, "TIME") || str_equals(cmd, "CLOCK")) {
+        cmd_time(fb);
+    } else if (str_equals(cmd, "DATE")) {
+        cmd_date(fb);
     } else if (str_equals(cmd, "UPTIME")) {
         cmd_uptime(fb);
     } else if (str_equals(cmd, "CALC")) {
@@ -606,7 +695,7 @@ static bool execute_command(gmu_framebuffer_t *fb, const char *command) {
         gmu_fb_clear(fb, TERM_BG);
         cursor_y = 16;
         print_line(fb, "Returned to GMU Terminal.", TERM_GREEN);
-    } else if (str_equals(cmd, "CALENDAR") || str_equals(cmd, "CAL") || str_equals(cmd, "CLOCK")) {
+    } else if (str_equals(cmd, "CALENDAR") || str_equals(cmd, "CAL")) {
         gmu_calendar_run(fb);
         gmu_fb_clear(fb, TERM_BG);
         cursor_y = 16;

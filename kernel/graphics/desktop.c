@@ -7,6 +7,7 @@
 #include <gmu/mouse.h>
 #include <gmu/app.h>
 #include <gmu/timer.h>
+#include <gmu/rtc.h>
 #include <gmu/pmm.h>
 #include <gmu/heap.h>
 #include <gmu/fs.h>
@@ -172,23 +173,9 @@ static void update_clock_tray(gmu_framebuffer_t *fb) {
     /* 5. Battery */
     gmu_draw_text(fb, tray_x + 260, tray_y + 8, "[AC 100%]", th->text_primary, th->surface);
 
-    /* 6. Live Clock */
-    uint64_t total_sec = gmu_timer_seconds();
-    uint64_t hrs = total_sec / 3600;
-    uint64_t mins = (total_sec % 3600) / 60;
-    uint64_t secs = total_sec % 60;
-
+    /* 6. Live Hardware Real-Time Clock (RTC) */
     char clock_str[24];
-    clock_str[0] = '0' + (hrs / 10);
-    clock_str[1] = '0' + (hrs % 10);
-    clock_str[2] = ':';
-    clock_str[3] = '0' + (mins / 10);
-    clock_str[4] = '0' + (mins % 10);
-    clock_str[5] = ':';
-    clock_str[6] = '0' + (secs / 10);
-    clock_str[7] = '0' + (secs % 10);
-    clock_str[8] = '\0';
-
+    gmu_rtc_get_time_str(clock_str, true);
     gmu_draw_text(fb, tray_x + 344, tray_y + 8, clock_str, th->chiclet_yellow, th->surface);
 }
 
@@ -575,12 +562,33 @@ void gmu_desktop_draw(gmu_framebuffer_t *fb) {
     gmu_draw_text(fb, card_x + 24, card_y + 66, "Kernel:      x86-64 Freestanding UEFI / Limine v3", th->text_primary, th->surface);
     gmu_draw_text(fb, card_x + 24, card_y + 88, "Physical:    1024 MB RAM (Bitmap PMM)  |  Heap: 2 MB Pool", th->text_primary, th->surface);
     gmu_draw_text(fb, card_x + 24, card_y + 110, "Filesystem:  RAMFS 128 Nodes Hierarchical Tree [READY]", th->text_primary, th->surface);
-    gmu_draw_text(fb, card_x + 24, card_y + 132, "Apps/Games:  13 Applications & Arcade Games active", th->text_primary, th->surface);
+    char dt_buf[48];
+    gmu_rtc_get_full_str(dt_buf);
+    char time_line[80] = "Clock & Date:  ";
+    int tlp = 15;
+    const char *dt_p = dt_buf;
+    while (*dt_p && tlp < 70) time_line[tlp++] = *dt_p++;
+    time_line[tlp] = '\0';
+    gmu_draw_text(fb, card_x + 24, card_y + 132, time_line, th->accent, th->surface);
 
     gmu_fill_rect(fb, card_x + 20, card_y + 154, card_w - 40, 1, th->border);
-    gmu_draw_text(fb, card_x + 24, card_y + 166,
-                  "[1-9,0] Dock  |  [M] Apple Menu  |  [Tab] Theme  |  Mouse Ready",
-                  th->chiclet_yellow, th->surface);
+
+    uint64_t up_sec = gmu_timer_seconds();
+    uint64_t up_min = up_sec / 60;
+    uint64_t up_rem_sec = up_sec % 60;
+    char up_buf[16];
+    format_num(up_min, up_buf);
+    char footer_line[96] = "Uptime: ";
+    int flp = 8;
+    const char *ub = up_buf; while (*ub) footer_line[flp++] = *ub++;
+    footer_line[flp++] = 'm'; footer_line[flp++] = ' ';
+    format_num(up_rem_sec, up_buf);
+    ub = up_buf; while (*ub) footer_line[flp++] = *ub++;
+    footer_line[flp++] = 's';
+    const char *rest = "  |  [M] Menu  |  [Tab] Theme  |  Mouse Ready";
+    while (*rest && flp < 90) footer_line[flp++] = *rest++;
+    footer_line[flp] = '\0';
+    gmu_draw_text(fb, card_x + 24, card_y + 166, footer_line, th->chiclet_yellow, th->surface);
 
     /* 5. Bottom Floating Glass Dock */
     draw_dock(fb);

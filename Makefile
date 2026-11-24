@@ -19,6 +19,7 @@ OBJECTS = $(BUILD)/main.o \
           $(BUILD)/idt.o \
           $(BUILD)/interrupt.o \
           $(BUILD)/timer.o \
+          $(BUILD)/rtc.o \
           $(BUILD)/isr_stubs.o \
           $(BUILD)/pmm.o \
           $(BUILD)/heap.o \
@@ -142,6 +143,9 @@ $(BUILD)/interrupt.o: kernel/arch/x86_64/interrupts/interrupt.c | $(BUILD)
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
 $(BUILD)/timer.o: kernel/arch/x86_64/interrupts/timer.c | $(BUILD)
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
+
+$(BUILD)/rtc.o: kernel/arch/x86_64/interrupts/rtc.c | $(BUILD)
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
 $(BUILD)/shooter.o: applications/games/shooter/shooter.c | $(BUILD)
